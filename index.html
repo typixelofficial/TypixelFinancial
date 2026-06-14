@@ -172,9 +172,6 @@
         </div>
     </div>
 
-    <!-- JotForm AI Agent -->
-    <script src='https://cdn.jotfor.ms/agent/embedjs/019ec4ae9b7c79129c97fdfa18d64525b8ae/embed.js'></script>
-
 <script>
 /* ============================================================
    CONFIGURATION
@@ -479,10 +476,11 @@ const App = {
         else { this.showLogin(); }
     },
 
+    /* ========== FIX: Properly defined showLogin ========== */
     showLogin() {
         document.getElementById('login-view').classList.remove('hidden');
         document.getElementById('app-view').classList.add('hidden');
-        Loading.hide();
+        Loading.hide(); // Ensure loading overlay is off
     },
 
     async login(username, password, remember) {
@@ -797,253 +795,259 @@ const Pages = {
                         <div><label class="text-[10px] text-corp-text uppercase">Employee ID</label><input id="m-empid" value="${m?.empId || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-corp-text uppercase">Position</label><input id="m-position" value="${m?.position || ''}" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"></div>
-                        <div><label class="text-[10px] text-corp-text uppercase">Department</label><input id="m-department" value="${m?.department || ''}" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"></div>
+                        <div><label class="text-[10px] text-corp-text uppercase">Position</label><input id="m-pos" value="${m?.position || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                        <div><label class="text-[10px] text-corp-text uppercase">Department</label><input id="m-dept" value="${m?.department || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-corp-text uppercase">Salary</label><input id="m-salary" type="number" step="0.01" value="${m?.salary || ''}" data-validate="positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                        <div><label class="text-[10px] text-corp-text uppercase">Status</label><select id="m-status" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><option ${m?.status === 'Active' ? 'selected' : ''}>Active</option><option ${m?.status === 'Inactive' ? 'selected' : ''}>Inactive</option></select></div>
+                        <div><label class="text-[10px] text-corp-text uppercase">Monthly Salary</label><input type="number" step="0.01" id="m-salary" value="${m?.salary || ''}" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                        <div><label class="text-[10px] text-corp-text uppercase">Status</label><select id="m-status" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none"><option ${m?.status === 'Active' ? 'selected' : ''}>Active</option><option ${m?.status === 'Inactive' ? 'selected' : ''}>Inactive</option></select></div>
                     </div>
-                    <button type="submit" class="btn-press w-full py-2 bg-purple-600 hover:bg-purple-700 rounded text-xs font-semibold text-white transition-colors no-select">${id ? 'Update' : 'Add'} Member</button>
+                    <button type="submit" id="member-submit-btn" class="btn-press w-full bg-purple-600 hover:bg-purple-700 py-2 rounded text-xs font-semibold transition-colors mt-2 no-select">Save Member</button>
                 </form>`);
-            document.getElementById('m-photo')?.addEventListener('change', function() {
-                const file = this.files[0]; if (!file) return;
+            document.getElementById('m-photo').addEventListener('change', function(e) {
+                const file = e.target.files[0]; if (!file) return;
+                if (file.size > 5 * 1024 * 1024) { Toast.error('Image must be under 5MB'); return; }
                 const reader = new FileReader();
-                reader.onload = e => { document.getElementById('photo-preview').innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`; document.getElementById('m-photo-data').value = e.target.result; };
-                reader.readAsDataURL(file);
+                reader.onload = function(ev) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const maxSize = 200; let w = img.width, h = img.height;
+                        if (w > h) { if (w > maxSize) { h *= maxSize / w; w = maxSize; } } else { if (h > maxSize) { w *= maxSize / h; h = maxSize; } }
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                        document.getElementById('m-photo-data').value = dataUrl;
+                        document.getElementById('photo-preview').innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover">`;
+                    }; img.src = ev.target.result;
+                }; reader.readAsDataURL(file);
             });
-            document.getElementById('member-form')?.addEventListener('submit', (e) => {
+            document.getElementById('member-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                if (!Validator.validate(e.target)) return;
-                const mid = document.getElementById('m-id').value;
-                const payload = { id: mid || 'mem_' + Date.now(), name: document.getElementById('m-name').value, empId: document.getElementById('m-empid').value, position: document.getElementById('m-position').value, department: document.getElementById('m-department').value, salary: document.getElementById('m-salary').value, status: document.getElementById('m-status').value, photo: document.getElementById('m-photo-data').value };
-                App.saveRecord('members', mid ? 'update' : 'create', payload, mid || null, `${mid ? 'Updated' : 'Added'} member: ${payload.name}`);
-                App.closeModal();
+                if (!Validator.validate(e.target)) { Toast.error('Please fix the errors'); return; }
+                if (App._saving) return;
+                const btn = document.getElementById('member-submit-btn');
+                btn.disabled = true; btn.innerHTML = '<span class="spinner mr-2"></span>Saving...';
+                const editId = document.getElementById('m-id').value;
+                const payload = { id: editId || 'mem_' + Date.now(), name: document.getElementById('m-name').value.trim(), empId: document.getElementById('m-empid').value.trim(), position: document.getElementById('m-pos').value.trim(), department: document.getElementById('m-dept').value.trim(), salary: document.getElementById('m-salary').value, status: document.getElementById('m-status').value, photo: document.getElementById('m-photo-data').value };
+                try { await App.saveRecord('members', editId ? 'update' : 'create', payload, editId || null, `${editId ? 'Updated' : 'Added'} member: ${payload.name}`); App.closeModal(); }
+                finally { btn.disabled = false; btn.textContent = 'Save Member'; }
             });
         }
     },
 
     salary: {
         render() {
-            let data = App.db.salaries; const q = App._searchQuery;
-            if (q) data = data.filter(r => (r.memberName || '').toLowerCase().includes(q) || (r.month || '').toLowerCase().includes(q));
+            const q = App._searchQuery;
+            let data = App.db.salaries;
+            if (q) data = data.filter(s => (s.name || '').toLowerCase().includes(q) || (s.status || '').toLowerCase().includes(q));
+            const totalPaid = data.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
             const state = Paginator.getState('salary', data.length);
             const pageData = Paginator.paginate(data, state.page, CONFIG.PAGE_SIZE);
-            const total = data.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
-            return `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6"><h2 class="text-xl font-bold text-white">Salary Management</h2><button id="add-salary-btn" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Add Salary</button></div>
-            <div class="bg-corp-panel border border-corp-border p-4 rounded mb-4"><span class="text-xs text-corp-text">Total Salaries:</span> <span class="text-lg font-bold">${App.formatCurrency(total)}</span></div>
-            <div class="overflow-x-auto"><table class="w-full text-xs text-left"><thead><tr class="border-b border-corp-border text-corp-text"><th class="pb-2 font-medium">Member</th><th class="pb-2 font-medium">Amount</th><th class="pb-2 font-medium">Month</th><th class="pb-2 font-medium">Status</th><th class="pb-2 font-medium"></th></tr></thead><tbody>${pageData.map(r => `<tr class="border-b border-corp-border hover:bg-corp-panel/50"><td class="py-3 text-white">${r.memberName || ''}</td><td class="py-3 text-purple-400">${App.formatCurrency(r.amount)}</td><td class="py-3">${r.month || ''}</td><td class="py-3"><span class="px-2 py-0.5 text-[10px] rounded ${r.status === 'Paid' ? 'bg-green-900/20 text-green-400' : 'bg-yellow-900/20 text-yellow-400'}">${r.status || 'Pending'}</span></td><td class="py-3"><button data-edit="${r.id}" class="text-[10px] text-corp-text hover:text-white mr-2">EDIT</button><button data-del="${r.id}" class="text-[10px] text-corp-text hover:text-red-400">DEL</button></td></tr>`).join('')}</tbody></table></div>${Paginator.render('salary', data.length, state.page)}`;
+            return `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                <h2 class="text-xl font-bold text-white">Salary Management</h2>
+                <button id="add-salary-btn" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Record Payment</button>
+            </div>
+            <div class="bg-corp-panel border border-corp-border p-4 rounded mb-6"><p class="text-xs text-corp-text uppercase">Total Salary Paid</p><p class="text-xl font-bold text-white mt-1">${App.formatCurrency(totalPaid)}</p></div>
+            <div class="bg-corp-panel border border-corp-border rounded overflow-x-auto"><table class="w-full text-xs text-left"><thead class="bg-corp-black text-corp-text uppercase"><tr><th class="p-3">Employee</th><th class="p-3">Amount</th><th class="p-3">Date</th><th class="p-3">Status</th><th class="p-3">Action</th></tr></thead><tbody>${pageData.map(s => `<tr class="border-b border-corp-border hover:bg-corp-black/50"><td class="p-3 text-white">${s.name || ''}</td><td class="p-3 text-purple-400">${App.formatCurrency(s.amount)}</td><td class="p-3 text-corp-text">${App.formatDate(s.date)}</td><td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ${s.status === 'Paid' ? 'bg-green-900/20 text-green-400' : 'bg-yellow-900/20 text-yellow-400'}">${s.status || 'Pending'}</span></td><td class="p-3"><button data-del-sal="${s.id}" class="text-red-400 hover:text-red-300 text-[10px]">Delete</button></td></tr>`).join('')}${!pageData.length ? '<tr><td colspan="5" class="p-3 text-corp-text text-center">No records</td></tr>' : ''}</tbody></table></div>${Paginator.render('salary', data.length, state.page)}`;
         },
         init() {
-            document.getElementById('add-salary-btn')?.addEventListener('click', () => this.showForm());
-            document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => this.showForm(e.target.dataset.edit)));
-            document.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', async (e) => { const id = e.target.dataset.del; if (await Confirm.show('Delete', 'Delete this salary record?')) await App.saveRecord('salaries', 'delete', null, id, 'Deleted salary record'); }));
-        },
-        showForm(id = null) {
-            const r = id ? App.db.salaries.find(x => x.id === id) : null;
-            App.openModal(id ? 'Edit Salary' : 'Add Salary', `
-                <form id="salary-form" class="space-y-4" novalidate>
-                    <input type="hidden" id="s-id" value="${r?.id || ''}">
-                    <div><label class="text-[10px] text-corp-text uppercase">Member</label><select id="s-member" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><option value="">Select member</option>${App.db.members.map(m => `<option value="${m.name}" ${r?.memberName === m.name ? 'selected' : ''}>${m.name}</option>`).join('')}</select><p class="field-error-msg"></p></div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-corp-text uppercase">Amount</label><input id="s-amount" type="number" step="0.01" value="${r?.amount || ''}" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                        <div><label class="text-[10px] text-corp-text uppercase">Month</label><input id="s-month" value="${r?.month || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                    </div>
-                    <div><label class="text-[10px] text-corp-text uppercase">Status</label><select id="s-status" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><option ${r?.status === 'Paid' ? 'selected' : ''}>Paid</option><option ${r?.status === 'Pending' ? 'selected' : ''}>Pending</option></select></div>
-                    <button type="submit" class="btn-press w-full py-2 bg-purple-600 hover:bg-purple-700 rounded text-xs font-semibold text-white transition-colors no-select">${id ? 'Update' : 'Add'} Salary</button>
-                </form>`);
-            document.getElementById('salary-form')?.addEventListener('submit', (e) => {
-                e.preventDefault(); if (!Validator.validate(e.target)) return;
-                const sid = document.getElementById('s-id').value;
-                const payload = { id: sid || 'sal_' + Date.now(), memberName: document.getElementById('s-member').value, amount: document.getElementById('s-amount').value, month: document.getElementById('s-month').value, status: document.getElementById('s-status').value };
-                App.saveRecord('salaries', sid ? 'update' : 'create', payload, sid || null, `${sid ? 'Updated' : 'Added'} salary: ${payload.memberName}`);
-                App.closeModal();
+            document.getElementById('add-salary-btn')?.addEventListener('click', () => {
+                const opts = App.db.members.filter(m => m.status === 'Active').map(m => `<option value="${m.id}" data-name="${m.name}">${m.name}</option>`).join('');
+                App.openModal('Record Salary', `<form id="sal-form" class="space-y-4" novalidate>
+                    <div><label class="text-[10px] text-corp-text uppercase">Employee</label><select id="s-member" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none"><option value="">Select employee</option>${opts}</select><p class="field-error-msg"></p></div>
+                    <div><label class="text-[10px] text-corp-text uppercase">Amount</label><input type="number" step="0.01" id="s-amount" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                    <div><label class="text-[10px] text-corp-text uppercase">Date</label><input type="date" id="s-date" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                    <div><label class="text-[10px] text-corp-text uppercase">Status</label><select id="s-status" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none"><option>Paid</option><option>Pending</option></select></div>
+                    <button type="submit" id="sal-submit-btn" class="btn-press w-full bg-purple-600 hover:bg-purple-700 py-2 rounded text-xs font-semibold transition-colors no-select">Save Payment</button></form>`);
+                document.getElementById('s-member').addEventListener('change', (e) => { const mem = App.db.members.find(m => m.id === e.target.value); if (mem) document.getElementById('s-amount').value = mem.salary || ''; });
+                document.getElementById('sal-form').addEventListener('submit', async (e) => {
+                    e.preventDefault(); if (!Validator.validate(e.target)) { Toast.error('Please fix the errors'); return; } if (App._saving) return;
+                    const btn = document.getElementById('sal-submit-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner mr-2"></span>Saving...';
+                    const sel = document.getElementById('s-member');
+                    const payload = { id: 'sal_' + Date.now(), memberId: sel.value, name: sel.options[sel.selectedIndex].dataset.name, amount: document.getElementById('s-amount').value, date: document.getElementById('s-date').value, status: document.getElementById('s-status').value };
+                    try { await App.saveRecord('salaries', 'create', payload, null, `Added salary payment: ${payload.name}`); App.closeModal(); }
+                    finally { btn.disabled = false; btn.textContent = 'Save Payment'; }
+                });
             });
+            document.querySelectorAll('[data-del-sal]').forEach(btn => btn.addEventListener('click', async (e) => {
+                const confirmed = await Confirm.show('Delete Salary Record', 'Are you sure you want to delete this salary record?');
+                if (confirmed) await App.saveRecord('salaries', 'delete', null, e.target.dataset.delSal, 'Deleted salary record');
+            }));
         }
+    },
+
+    _finPage(type, title, categories) {
+        const q = App._searchQuery;
+        let data = App.db[type];
+        const nameField = type === 'income' ? 'source' : 'name';
+        if (q) data = data.filter(i => (i[nameField] || '').toLowerCase().includes(q) || (i.category || '').toLowerCase().includes(q));
+        const total = data.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+        const state = Paginator.getState(type, data.length);
+        const pageData = Paginator.paginate(data, state.page, CONFIG.PAGE_SIZE);
+        return `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+            <h2 class="text-xl font-bold text-white">${title} Management</h2>
+            <button id="add-fin-btn" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Add ${title}</button>
+        </div>
+        <div class="bg-corp-panel border border-corp-border p-4 rounded mb-6"><p class="text-xs text-corp-text uppercase">Total ${title}</p><p class="text-xl font-bold ${type === 'income' ? 'text-green-400' : 'text-red-400'} mt-1">${App.formatCurrency(total)}</p></div>
+        <div class="bg-corp-panel border border-corp-border rounded overflow-x-auto"><table class="w-full text-xs text-left"><thead class="bg-corp-black text-corp-text uppercase"><tr><th class="p-3">${type === 'income' ? 'Source' : 'Name'}</th><th class="p-3">Category</th><th class="p-3">Amount</th><th class="p-3">Date</th><th class="p-3">Action</th></tr></thead><tbody>${pageData.map(i => `<tr class="border-b border-corp-border hover:bg-corp-black/50"><td class="p-3 text-white">${i[nameField] || ''}</td><td class="p-3 text-corp-text"><span class="px-2 py-0.5 bg-corp-black rounded">${i.category || ''}</span></td><td class="p-3 text-purple-400">${App.formatCurrency(i.amount)}</td><td class="p-3 text-corp-text">${App.formatDate(i.date)}</td><td class="p-3"><button data-del-fin="${i.id}" class="text-red-400 hover:text-red-300 text-[10px]">Delete</button></td></tr>`).join('')}${!pageData.length ? '<tr><td colspan="5" class="p-3 text-corp-text text-center">No records</td></tr>' : ''}</tbody></table></div>${Paginator.render(type, data.length, state.page)}`;
+    },
+
+    _finInit(type, field, title, categories) {
+        document.getElementById('add-fin-btn')?.addEventListener('click', () => {
+            App.openModal(`Add ${title}`, `<form id="fin-form" class="space-y-4" novalidate>
+                <div><label class="text-[10px] text-corp-text uppercase">${type === 'income' ? 'Source' : 'Name'}</label><input id="f-name" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                <div><label class="text-[10px] text-corp-text uppercase">Amount</label><input type="number" step="0.01" id="f-amount" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                <div><label class="text-[10px] text-corp-text uppercase">Category</label><select id="f-cat" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none">${categories.map(c => `<option>${c}</option>`).join('')}</select></div>
+                <div><label class="text-[10px] text-corp-text uppercase">Date</label><input type="date" id="f-date" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                <button type="submit" id="fin-submit-btn" class="btn-press w-full bg-purple-600 hover:bg-purple-700 py-2 rounded text-xs font-semibold transition-colors no-select">Save</button></form>`);
+            document.getElementById('fin-form').addEventListener('submit', async (e) => {
+                e.preventDefault(); if (!Validator.validate(e.target)) { Toast.error('Please fix the errors'); return; } if (App._saving) return;
+                const btn = document.getElementById('fin-submit-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner mr-2"></span>Saving...';
+                const payload = { id: type.charAt(0) + '_' + Date.now(), [field]: document.getElementById('f-name').value.trim(), amount: document.getElementById('f-amount').value, category: document.getElementById('f-cat').value, date: document.getElementById('f-date').value, desc: '' };
+                try { await App.saveRecord(type, 'create', payload, null, `Added ${title} record: ${payload[field]}`); App.closeModal(); }
+                finally { btn.disabled = false; btn.textContent = 'Save'; }
+            });
+        });
+        document.querySelectorAll('[data-del-fin]').forEach(btn => btn.addEventListener('click', async (e) => {
+            const confirmed = await Confirm.show('Delete Record', 'Are you sure you want to delete this record?');
+            if (confirmed) await App.saveRecord(type, 'delete', null, e.target.dataset.delFin, `Deleted ${title} record`);
+        }));
     },
 
     income: {
-        render() {
-            let data = App.db.income; const q = App._searchQuery;
-            if (q) data = data.filter(i => (i.source || '').toLowerCase().includes(q) || (i.category || '').toLowerCase().includes(q));
-            const state = Paginator.getState('income', data.length);
-            const pageData = Paginator.paginate(data, state.page, CONFIG.PAGE_SIZE);
-            const total = data.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-            return `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6"><h2 class="text-xl font-bold text-white">Income Records</h2><button id="add-income-btn" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Add Income</button></div>
-            <div class="bg-corp-panel border border-corp-border p-4 rounded mb-4"><span class="text-xs text-corp-text">Total Income:</span> <span class="text-lg font-bold text-green-400">${App.formatCurrency(total)}</span></div>
-            <div class="overflow-x-auto"><table class="w-full text-xs text-left"><thead><tr class="border-b border-corp-border text-corp-text"><th class="pb-2 font-medium">Source</th><th class="pb-2 font-medium">Category</th><th class="pb-2 font-medium">Amount</th><th class="pb-2 font-medium">Date</th><th class="pb-2 font-medium"></th></tr></thead><tbody>${pageData.map(i => `<tr class="border-b border-corp-border hover:bg-corp-panel/50"><td class="py-3 text-white">${i.source || ''}</td><td class="py-3">${i.category || ''}</td><td class="py-3 text-green-400 font-semibold">${App.formatCurrency(i.amount)}</td><td class="py-3 text-corp-text">${App.formatDate(i.date)}</td><td class="py-3"><button data-edit="${i.id}" class="text-[10px] text-corp-text hover:text-white mr-2">EDIT</button><button data-del="${i.id}" class="text-[10px] text-corp-text hover:text-red-400">DEL</button></td></tr>`).join('')}</tbody></table></div>${Paginator.render('income', data.length, state.page)}`;
-        },
-        init() {
-            document.getElementById('add-income-btn')?.addEventListener('click', () => this.showForm());
-            document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => this.showForm(e.target.dataset.edit)));
-            document.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', async (e) => { const id = e.target.dataset.del; const i = App.db.income.find(x => x.id === id); if (await Confirm.show('Delete', `Delete income "${i?.source || id}"?`)) await App.saveRecord('income', 'delete', null, id, `Deleted income: ${i?.source || id}`); }));
-        },
-        showForm(id = null) {
-            const i = id ? App.db.income.find(x => x.id === id) : null;
-            App.openModal(id ? 'Edit Income' : 'Add Income', `
-                <form id="income-form" class="space-y-4" novalidate>
-                    <input type="hidden" id="i-id" value="${i?.id || ''}">
-                    <div><label class="text-[10px] text-corp-text uppercase">Source</label><input id="i-source" value="${i?.source || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-corp-text uppercase">Amount</label><input id="i-amount" type="number" step="0.01" value="${i?.amount || ''}" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                        <div><label class="text-[10px] text-corp-text uppercase">Date</label><input id="i-date" type="date" value="${i?.date || new Date().toISOString().split('T')[0]}" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"></div>
-                    </div>
-                    <div><label class="text-[10px] text-corp-text uppercase">Category</label><input id="i-category" value="${i?.category || ''}" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"></div>
-                    <button type="submit" class="btn-press w-full py-2 bg-purple-600 hover:bg-purple-700 rounded text-xs font-semibold text-white transition-colors no-select">${id ? 'Update' : 'Add'} Income</button>
-                </form>`);
-            document.getElementById('income-form')?.addEventListener('submit', (e) => {
-                e.preventDefault(); if (!Validator.validate(e.target)) return;
-                const iid = document.getElementById('i-id').value;
-                const payload = { id: iid || 'inc_' + Date.now(), source: document.getElementById('i-source').value, amount: document.getElementById('i-amount').value, date: document.getElementById('i-date').value, category: document.getElementById('i-category').value };
-                App.saveRecord('income', iid ? 'update' : 'create', payload, iid || null, `${iid ? 'Updated' : 'Added'} income: ${payload.source}`);
-                App.closeModal();
-            });
-        }
+        render() { return Pages._finPage('income', 'Income', ['Client Payments', 'Donations', 'Sponsorships', 'Investments', 'Other Revenue']); },
+        init() { Pages._finInit('income', 'source', 'Income', ['Client Payments', 'Donations', 'Sponsorships', 'Investments', 'Other Revenue']); }
     },
 
     expenses: {
-        render() {
-            let data = App.db.expenses; const q = App._searchQuery;
-            if (q) data = data.filter(e => (e.name || '').toLowerCase().includes(q) || (e.category || '').toLowerCase().includes(q));
-            const state = Paginator.getState('expenses', data.length);
-            const pageData = Paginator.paginate(data, state.page, CONFIG.PAGE_SIZE);
-            const total = data.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-            return `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6"><h2 class="text-xl font-bold text-white">Expense Records</h2><button id="add-expense-btn" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Add Expense</button></div>
-            <div class="bg-corp-panel border border-corp-border p-4 rounded mb-4"><span class="text-xs text-corp-text">Total Expenses:</span> <span class="text-lg font-bold text-red-400">${App.formatCurrency(total)}</span></div>
-            <div class="overflow-x-auto"><table class="w-full text-xs text-left"><thead><tr class="border-b border-corp-border text-corp-text"><th class="pb-2 font-medium">Name</th><th class="pb-2 font-medium">Category</th><th class="pb-2 font-medium">Amount</th><th class="pb-2 font-medium">Date</th><th class="pb-2 font-medium"></th></tr></thead><tbody>${pageData.map(e => `<tr class="border-b border-corp-border hover:bg-corp-panel/50"><td class="py-3 text-white">${e.name || ''}</td><td class="py-3">${e.category || ''}</td><td class="py-3 text-red-400 font-semibold">${App.formatCurrency(e.amount)}</td><td class="py-3 text-corp-text">${App.formatDate(e.date)}</td><td class="py-3"><button data-edit="${e.id}" class="text-[10px] text-corp-text hover:text-white mr-2">EDIT</button><button data-del="${e.id}" class="text-[10px] text-corp-text hover:text-red-400">DEL</button></td></tr>`).join('')}</tbody></table></div>${Paginator.render('expenses', data.length, state.page)}`;
-        },
-        init() {
-            document.getElementById('add-expense-btn')?.addEventListener('click', () => this.showForm());
-            document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => this.showForm(e.target.dataset.edit)));
-            document.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', async (e) => { const id = e.target.dataset.del; const ex = App.db.expenses.find(x => x.id === id); if (await Confirm.show('Delete', `Delete expense "${ex?.name || id}"?`)) await App.saveRecord('expenses', 'delete', null, id, `Deleted expense: ${ex?.name || id}`); }));
-        },
-        showForm(id = null) {
-            const e = id ? App.db.expenses.find(x => x.id === id) : null;
-            App.openModal(id ? 'Edit Expense' : 'Add Expense', `
-                <form id="expense-form" class="space-y-4" novalidate>
-                    <input type="hidden" id="e-id" value="${e?.id || ''}">
-                    <div><label class="text-[10px] text-corp-text uppercase">Name</label><input id="e-name" value="${e?.name || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-corp-text uppercase">Amount</label><input id="e-amount" type="number" step="0.01" value="${e?.amount || ''}" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                        <div><label class="text-[10px] text-corp-text uppercase">Date</label><input id="e-date" type="date" value="${e?.date || new Date().toISOString().split('T')[0]}" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"></div>
-                    </div>
-                    <div><label class="text-[10px] text-corp-text uppercase">Category</label><input id="e-category" value="${e?.category || ''}" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"></div>
-                    <button type="submit" class="btn-press w-full py-2 bg-purple-600 hover:bg-purple-700 rounded text-xs font-semibold text-white transition-colors no-select">${id ? 'Update' : 'Add'} Expense</button>
-                </form>`);
-            document.getElementById('expense-form')?.addEventListener('submit', (ev) => {
-                ev.preventDefault(); if (!Validator.validate(ev.target)) return;
-                const eid = document.getElementById('e-id').value;
-                const payload = { id: eid || 'exp_' + Date.now(), name: document.getElementById('e-name').value, amount: document.getElementById('e-amount').value, date: document.getElementById('e-date').value, category: document.getElementById('e-category').value };
-                App.saveRecord('expenses', eid ? 'update' : 'create', payload, eid || null, `${eid ? 'Updated' : 'Added'} expense: ${payload.name}`);
-                App.closeModal();
-            });
-        }
+        render() { return Pages._finPage('expenses', 'Expenses', ['Salaries', 'Software', 'Marketing', 'Equipment', 'Office', 'Miscellaneous']); },
+        init() { Pages._finInit('expenses', 'name', 'Expenses', ['Salaries', 'Software', 'Marketing', 'Equipment', 'Office', 'Miscellaneous']); }
     },
 
     savings: {
         render() {
-            let data = App.db.savings; const q = App._searchQuery;
-            if (q) data = data.filter(s => (s.description || '').toLowerCase().includes(q) || (s.type || '').toLowerCase().includes(q));
+            const q = App._searchQuery;
+            let data = App.db.savings;
+            if (q) data = data.filter(s => (s.type || '').toLowerCase().includes(q) || (s.desc || '').toLowerCase().includes(q));
+            const balance = data.reduce((s, r) => s + (r.type === 'Deposit' ? parseFloat(r.amount || 0) : -parseFloat(r.amount || 0)), 0);
             const state = Paginator.getState('savings', data.length);
             const pageData = Paginator.paginate(data, state.page, CONFIG.PAGE_SIZE);
-            const total = data.reduce((s, r) => s + (r.type === 'Deposit' ? parseFloat(r.amount || 0) : -parseFloat(r.amount || 0)), 0);
-            return `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6"><h2 class="text-xl font-bold text-white">Savings Records</h2><button id="add-savings-btn" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Add Record</button></div>
-            <div class="bg-corp-panel border border-corp-border p-4 rounded mb-4"><span class="text-xs text-corp-text">Total Savings:</span> <span class="text-lg font-bold text-purple-400">${App.formatCurrency(total)}</span></div>
-            <div class="overflow-x-auto"><table class="w-full text-xs text-left"><thead><tr class="border-b border-corp-border text-corp-text"><th class="pb-2 font-medium">Description</th><th class="pb-2 font-medium">Type</th><th class="pb-2 font-medium">Amount</th><th class="pb-2 font-medium">Date</th><th class="pb-2 font-medium"></th></tr></thead><tbody>${pageData.map(s => `<tr class="border-b border-corp-border hover:bg-corp-panel/50"><td class="py-3 text-white">${s.description || ''}</td><td class="py-3"><span class="px-2 py-0.5 text-[10px] rounded ${s.type === 'Deposit' ? 'bg-green-900/20 text-green-400' : 'bg-red-900/20 text-red-400'}">${s.type || 'Deposit'}</span></td><td class="py-3 text-purple-400 font-semibold">${App.formatCurrency(s.amount)}</td><td class="py-3 text-corp-text">${App.formatDate(s.date)}</td><td class="py-3"><button data-edit="${s.id}" class="text-[10px] text-corp-text hover:text-white mr-2">EDIT</button><button data-del="${s.id}" class="text-[10px] text-corp-text hover:text-red-400">DEL</button></td></tr>`).join('')}</tbody></table></div>${Paginator.render('savings', data.length, state.page)}`;
+            return `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                <h2 class="text-xl font-bold text-white">Company Savings</h2>
+                <div class="flex gap-2"><button id="add-deposit" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Deposit</button><button id="add-withdraw" class="btn-press bg-corp-panel border border-corp-border hover:bg-corp-black px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Withdraw</button></div>
+            </div>
+            <div class="bg-corp-panel border border-corp-border p-4 rounded mb-6"><p class="text-xs text-corp-text uppercase">Total Savings Balance</p><p class="text-xl font-bold text-purple-400 mt-1">${App.formatCurrency(balance)}</p></div>
+            <div class="bg-corp-panel border border-corp-border rounded overflow-x-auto"><table class="w-full text-xs text-left"><thead class="bg-corp-black text-corp-text uppercase"><tr><th class="p-3">Type</th><th class="p-3">Amount</th><th class="p-3">Date</th><th class="p-3">Description</th><th class="p-3">Action</th></tr></thead><tbody>${pageData.map(i => `<tr class="border-b border-corp-border hover:bg-corp-black/50"><td class="p-3 ${i.type === 'Deposit' ? 'text-green-400' : 'text-red-400'}">${i.type}</td><td class="p-3 text-white">${App.formatCurrency(i.amount)}</td><td class="p-3 text-corp-text">${App.formatDate(i.date)}</td><td class="p-3 text-corp-text">${i.desc || 'N/A'}</td><td class="p-3"><button data-del-sav="${i.id}" class="text-red-400 hover:text-red-300 text-[10px]">Delete</button></td></tr>`).join('')}${!pageData.length ? '<tr><td colspan="5" class="p-3 text-corp-text text-center">No records</td></tr>' : ''}</tbody></table></div>${Paginator.render('savings', data.length, state.page)}`;
         },
         init() {
-            document.getElementById('add-savings-btn')?.addEventListener('click', () => this.showForm());
-            document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => this.showForm(e.target.dataset.edit)));
-            document.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', async (e) => { const id = e.target.dataset.del; if (await Confirm.show('Delete', 'Delete this savings record?')) await App.saveRecord('savings', 'delete', null, id, 'Deleted savings record'); }));
+            const formHtml = (type) => `<form id="sav-form" class="space-y-4" novalidate>
+                <input type="hidden" id="sv-type" value="${type}">
+                <div><label class="text-[10px] text-corp-text uppercase">Amount</label><input type="number" step="0.01" id="sv-amount" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                <div><label class="text-[10px] text-corp-text uppercase">Date</label><input type="date" id="sv-date" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                <div><label class="text-[10px] text-corp-text uppercase">Description</label><input id="sv-desc" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"></div>
+                <button type="submit" id="sav-submit-btn" class="btn-press w-full bg-purple-600 hover:bg-purple-700 py-2 rounded text-xs font-semibold transition-colors no-select">Save</button></form>`;
+            document.getElementById('add-deposit')?.addEventListener('click', () => { App.openModal('Deposit Savings', formHtml('Deposit')); this._bindForm(); });
+            document.getElementById('add-withdraw')?.addEventListener('click', () => { App.openModal('Withdraw Savings', formHtml('Withdraw')); this._bindForm(); });
+            document.querySelectorAll('[data-del-sav]').forEach(btn => btn.addEventListener('click', async (e) => {
+                const confirmed = await Confirm.show('Delete Savings Record', 'Are you sure you want to delete this savings record?');
+                if (confirmed) await App.saveRecord('savings', 'delete', null, e.target.dataset.delSav, 'Deleted savings record');
+            }));
         },
-        showForm(id = null) {
-            const s = id ? App.db.savings.find(x => x.id === id) : null;
-            App.openModal(id ? 'Edit Savings' : 'Add Savings', `
-                <form id="savings-form" class="space-y-4" novalidate>
-                    <input type="hidden" id="sv-id" value="${s?.id || ''}">
-                    <div><label class="text-[10px] text-corp-text uppercase">Description</label><input id="sv-desc" value="${s?.description || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-corp-text uppercase">Amount</label><input id="sv-amount" type="number" step="0.01" value="${s?.amount || ''}" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                        <div><label class="text-[10px] text-corp-text uppercase">Type</label><select id="sv-type" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><option ${s?.type === 'Deposit' ? 'selected' : ''}>Deposit</option><option ${s?.type === 'Withdrawal' ? 'selected' : ''}>Withdrawal</option></select></div>
-                    </div>
-                    <div><label class="text-[10px] text-corp-text uppercase">Date</label><input id="sv-date" type="date" value="${s?.date || new Date().toISOString().split('T')[0]}" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"></div>
-                    <button type="submit" class="btn-press w-full py-2 bg-purple-600 hover:bg-purple-700 rounded text-xs font-semibold text-white transition-colors no-select">${id ? 'Update' : 'Add'} Record</button>
-                </form>`);
-            document.getElementById('savings-form')?.addEventListener('submit', (e) => {
-                e.preventDefault(); if (!Validator.validate(e.target)) return;
-                const svid = document.getElementById('sv-id').value;
-                const payload = { id: svid || 'sav_' + Date.now(), description: document.getElementById('sv-desc').value, amount: document.getElementById('sv-amount').value, type: document.getElementById('sv-type').value, date: document.getElementById('sv-date').value };
-                App.saveRecord('savings', svid ? 'update' : 'create', payload, svid || null, `${svid ? 'Updated' : 'Added'} savings: ${payload.description}`);
-                App.closeModal();
+        _bindForm() {
+            document.getElementById('sav-form').addEventListener('submit', async (e) => {
+                e.preventDefault(); if (!Validator.validate(e.target)) { Toast.error('Please fix the errors'); return; } if (App._saving) return;
+                const btn = document.getElementById('sav-submit-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner mr-2"></span>Saving...';
+                const payload = { id: 'sav_' + Date.now(), type: document.getElementById('sv-type').value, amount: document.getElementById('sv-amount').value, date: document.getElementById('sv-date').value, desc: document.getElementById('sv-desc').value.trim() };
+                try { await App.saveRecord('savings', 'create', payload, null, `Recorded ${payload.type} in savings`); App.closeModal(); }
+                finally { btn.disabled = false; btn.textContent = 'Save'; }
             });
         }
     },
 
     reports: {
         render() {
-            const inc = App.db.income.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-            const exp = App.db.expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-            const sal = App.db.salaries.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
-            const sav = App.db.savings.reduce((s, r) => s + (r.type === 'Deposit' ? parseFloat(r.amount || 0) : -parseFloat(r.amount || 0)), 0);
-            return `<h2 class="text-xl font-bold text-white mb-6">Financial Reports</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-corp-panel border border-corp-border p-6 rounded">
-                    <h3 class="text-sm font-semibold mb-4 text-white">Summary</h3>
-                    <div class="space-y-3 text-xs">
-                        <div class="flex justify-between"><span class="text-corp-text">Total Income</span><span class="text-green-400 font-semibold">${App.formatCurrency(inc)}</span></div>
-                        <div class="flex justify-between"><span class="text-corp-text">Total Expenses</span><span class="text-red-400 font-semibold">${App.formatCurrency(exp)}</span></div>
-                        <div class="flex justify-between"><span class="text-corp-text">Total Salaries</span><span class="font-semibold">${App.formatCurrency(sal)}</span></div>
-                        <div class="flex justify-between border-t border-corp-border pt-3"><span class="text-corp-text font-medium">Net Profit</span><span class="${inc - exp - sal >= 0 ? 'text-green-400' : 'text-red-400'} font-semibold">${App.formatCurrency(inc - exp - sal)}</span></div>
-                        <div class="flex justify-between"><span class="text-corp-text font-medium">Savings Balance</span><span class="text-purple-400 font-semibold">${App.formatCurrency(sav)}</span></div>
-                    </div>
-                </div>
-                <div class="bg-corp-panel border border-corp-border p-6 rounded">
-                    <h3 class="text-sm font-semibold mb-4 text-white">Export Data</h3>
-                    <div class="space-y-3">
-                        <button id="export-pdf" class="btn-press w-full py-2 bg-corp-black border border-corp-border rounded text-xs font-semibold text-corp-text hover:text-white transition-colors no-select">Export as PDF</button>
-                        <button id="export-excel" class="btn-press w-full py-2 bg-corp-black border border-corp-border rounded text-xs font-semibold text-corp-text hover:text-white transition-colors no-select">Export as Excel</button>
-                    </div>
-                </div>
-            </div>`;
+            const q = App._searchQuery;
+            let activities = App.db.activities;
+            if (q) activities = activities.filter(a => (a.desc || '').toLowerCase().includes(q));
+            return `<h2 class="text-xl font-bold text-white mb-6">Reports & Export</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-corp-panel border border-corp-border p-6 rounded"><h3 class="text-sm font-semibold mb-4 text-white">Generate & Export Reports</h3><div class="space-y-2">
+                        <button data-report="income" class="btn-press w-full text-left px-4 py-3 bg-corp-black border border-corp-border rounded hover:border-purple-500 transition-colors text-xs text-corp-text hover:text-white no-select">Income Report</button>
+                        <button data-report="expenses" class="btn-press w-full text-left px-4 py-3 bg-corp-black border border-corp-border rounded hover:border-purple-500 transition-colors text-xs text-corp-text hover:text-white no-select">Expenses Report</button>
+                        <button data-report="salaries" class="btn-press w-full text-left px-4 py-3 bg-corp-black border border-corp-border rounded hover:border-purple-500 transition-colors text-xs text-corp-text hover:text-white no-select">Salary Report</button>
+                        <button data-report="savings" class="btn-press w-full text-left px-4 py-3 bg-corp-black border border-corp-border rounded hover:border-purple-500 transition-colors text-xs text-corp-text hover:text-white no-select">Savings Report</button>
+                    </div></div>
+                    <div class="bg-corp-panel border border-corp-border p-6 rounded"><h3 class="text-sm font-semibold mb-4 text-white">Activity Log</h3><div class="space-y-2 max-h-80 overflow-y-auto pr-2">
+                        ${activities.length ? activities.slice(0, 50).map(a => `<div class="text-[11px] border-b border-corp-border pb-2"><span class="text-zinc-600">${a.time ? new Date(a.time).toLocaleString() : ''}</span><br><span class="text-corp-text">${a.desc || ''}</span></div>`).join('') : '<p class="text-corp-text text-xs">No activities recorded.</p>'}
+                    </div></div>
+                </div>`;
         },
         init() {
-            document.getElementById('export-pdf')?.addEventListener('click', () => {
-                try {
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF();
-                    doc.setFontSize(18);
-                    doc.text('TyPixel Financial Report', 14, 22);
-                    doc.setFontSize(10);
-                    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 30);
-                    doc.setFontSize(12);
-                    const inc = App.db.income.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-                    const exp = App.db.expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-                    const sal = App.db.salaries.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
-                    doc.text(`Total Income: ${App.formatCurrency(inc)}`, 14, 45);
-                    doc.text(`Total Expenses: ${App.formatCurrency(exp)}`, 14, 53);
-                    doc.text(`Total Salaries: ${App.formatCurrency(sal)}`, 14, 61);
-                    doc.text(`Net Profit: ${App.formatCurrency(inc - exp - sal)}`, 14, 69);
-                    doc.save('TyPixel_Report.pdf');
-                    Toast.success('PDF exported successfully');
-                } catch(e) { Toast.error('Failed to export PDF'); }
-            });
-            document.getElementById('export-excel')?.addEventListener('click', () => {
-                try {
-                    const wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(App.db.income), 'Income');
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(App.db.expenses), 'Expenses');
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(App.db.salaries), 'Salaries');
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(App.db.savings), 'Savings');
-                    XLSX.writeFile(wb, 'TyPixel_Data.xlsx');
-                    Toast.success('Excel exported successfully');
-                } catch(e) { Toast.error('Failed to export Excel'); }
-            });
+            document.querySelectorAll('[data-report]').forEach(btn => btn.addEventListener('click', (e) => this._generate(e.target.dataset.report)));
+        },
+        _generate(type) {
+            const data = App.db[type];
+            const config = {
+                income: { title: 'Income Report', headers: ['Source', 'Category', 'Amount', 'Date'], fields: ['source', 'category', 'amount', 'date'] },
+                expenses: { title: 'Expenses Report', headers: ['Name', 'Category', 'Amount', 'Date'], fields: ['name', 'category', 'amount', 'date'] },
+                salaries: { title: 'Salary Report', headers: ['Employee', 'Amount', 'Date', 'Status'], fields: ['name', 'amount', 'date', 'status'] },
+                savings: { title: 'Savings Report', headers: ['Type', 'Amount', 'Date', 'Description'], fields: ['type', 'amount', 'date', 'desc'] }
+            };
+            const cfg = config[type]; if (!cfg) return;
+            if (!data.length) { Toast.warning(`No ${type} data to export.`); return; }
+            App.openModal(`Export ${cfg.title}`, `<div class="space-y-4"><p class="text-xs text-corp-text">Exporting ${data.length} records from ${cfg.title}.</p><div class="grid grid-cols-3 gap-2">
+                <button id="exp-pdf" class="btn-press bg-purple-600 hover:bg-purple-700 py-2 rounded text-xs font-semibold transition-colors no-select">PDF</button>
+                <button id="exp-xlsx" class="btn-press bg-corp-black border border-corp-border hover:border-purple-500 py-2 rounded text-xs font-semibold transition-colors text-white no-select">Excel</button>
+                <button id="exp-csv" class="btn-press bg-corp-black border border-corp-border hover:border-purple-500 py-2 rounded text-xs font-semibold transition-colors text-white no-select">CSV</button>
+            </div></div>`);
+            document.getElementById('exp-pdf').addEventListener('click', () => this._exportPDF(cfg, data));
+            document.getElementById('exp-xlsx').addEventListener('click', () => this._exportXLSX(cfg, data));
+            document.getElementById('exp-csv').addEventListener('click', () => this._exportCSV(cfg, data));
+        },
+        _exportPDF(cfg, data) {
+            try {
+                const { jsPDF } = window.jspdf; const doc = new jsPDF();
+                doc.setFontSize(16); doc.text(cfg.title, 14, 20);
+                doc.setFontSize(10); doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+                doc.text(`Total Records: ${data.length}`, 14, 34);
+                let y = 44; doc.setFontSize(9); doc.setFont(undefined, 'bold');
+                cfg.headers.forEach((h, i) => doc.text(h, 14 + i * 42, y)); y += 6; doc.setFont(undefined, 'normal');
+                data.forEach(row => {
+                    if (y > 280) { doc.addPage(); y = 20; }
+                    cfg.fields.forEach((f, i) => { let val = row[f] || ''; if (f === 'amount') val = App.formatCurrency(val); if (f === 'date') val = App.formatDate(val); doc.text(String(val).substring(0, 20), 14 + i * 42, y); }); y += 5;
+                });
+                doc.save(`${cfg.title.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+                Toast.success('PDF exported'); App.closeModal();
+            } catch (err) { Toast.error('PDF export failed: ' + err.message); }
+        },
+        _exportXLSX(cfg, data) {
+            try {
+                const rows = data.map(row => cfg.fields.map(f => { if (f === 'amount') return parseFloat(row[f]) || 0; return row[f] || ''; }));
+                const ws = XLSX.utils.aoa_to_sheet([cfg.headers, ...rows]);
+                const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Report');
+                XLSX.writeFile(wb, `${cfg.title.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+                Toast.success('Excel exported'); App.closeModal();
+            } catch (err) { Toast.error('Excel export failed: ' + err.message); }
+        },
+        _exportCSV(cfg, data) {
+            try {
+                const header = cfg.headers.join(',');
+                const rows = data.map(row => cfg.fields.map(f => { let val = row[f] || ''; if (f === 'amount') val = parseFloat(row[f]) || 0; return `"${String(val).replace(/"/g, '""')}"`; }).join(','));
+                const csv = [header, ...rows].join('\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `${cfg.title.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url);
+                Toast.success('CSV exported'); App.closeModal();
+            } catch (err) { Toast.error('CSV export failed: ' + err.message); }
         }
     }
 };
 
-// Initialize App
-App.init();
+/* ============================================================
+   INIT
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => App.init());
 </script>
 </body>
 </html>

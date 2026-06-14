@@ -860,8 +860,7 @@ const App = {
     },
 
     /* ========== Utilities ========== */
-    formatCurrency(amount) { return `${this.db.settings.currency}${parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`; },
-    formatDate(dateStr) {
+formatCurrency(amount) { return `${this.db.settings.currency}${parseFloat(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`; },    formatDate(dateStr) {
         if (!dateStr) return 'N/A';
         try { const d = new Date(dateStr); return isNaN(d) ? 'N/A' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
         catch(e) { return 'N/A'; }

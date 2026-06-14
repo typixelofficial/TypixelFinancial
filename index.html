@@ -72,24 +72,6 @@
 
         /* === Prevent double-click text selection === */
         .no-select { user-select: none; -webkit-user-select: none; }
-
-        /* === AI Chat Widget === */
-        #ai-chat-widget { position: fixed; bottom: 24px; right: 24px; z-index: 90; font-family: 'Inter', sans-serif; }
-        .chat-fab { width: 56px; height: 56px; border-radius: 50%; background: #9333ea; color: white; border: none; font-size: 20px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; transition: transform 0.2s, box-shadow 0.2s; }
-        .chat-fab:hover { transform: scale(1.05); box-shadow: 0 6px 16px rgba(147, 51, 234, 0.5); }
-        .chat-panel { position: absolute; bottom: 70px; right: 0; width: 360px; height: 480px; background: #111111; border: 1px solid #1f1f1f; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.6); animation: slideUp 0.3s ease-out; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .chat-header { padding: 16px; background: #0a0a0a; border-bottom: 1px solid #1f1f1f; display: flex; justify-content: space-between; align-items: center; color: white; font-weight: 600; font-size: 14px; }
-        .chat-header button { background: none; border: none; color: #a1a1aa; font-size: 18px; cursor: pointer; line-height: 1; }
-        .chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-        .chat-msg { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.4; }
-        .chat-msg.ai { background: #1f1f1f; color: #e4e4e7; align-self: flex-start; border-bottom-left-radius: 4px; }
-        .chat-msg.user { background: #9333ea; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
-        .chat-input-area { padding: 12px; border-top: 1px solid #1f1f1f; display: flex; gap: 8px; background: #0a0a0a; }
-        .chat-input-area input { flex: 1; background: #111111; border: 1px solid #1f1f1f; border-radius: 6px; padding: 8px 12px; color: white; font-size: 13px; outline: none; }
-        .chat-input-area input:focus { border-color: #9333ea; }
-        .chat-input-area button { background: #9333ea; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: background 0.2s; }
-        .chat-input-area button:hover { background: #7e22ce; }
     </style>
 </head>
 <body class="bg-corp-black text-white font-sans h-screen overflow-hidden flex items-center justify-center">
@@ -166,24 +148,6 @@
         </div>
     </div>
 
-    <!-- AI Chat Widget -->
-    <div id="ai-chat-widget" class="hidden">
-        <div id="ai-chat-panel" class="chat-panel hidden">
-            <div class="chat-header">
-                <span>AI Financial Assistant</span>
-                <button id="ai-chat-close">&times;</button>
-            </div>
-            <div id="ai-chat-messages" class="chat-messages">
-                <div class="chat-msg ai">Hello! I can help you understand your financial data. Try asking "What is my total income?" or "How much did I spend?"</div>
-            </div>
-            <div class="chat-input-area">
-                <input type="text" id="ai-chat-input" placeholder="Type a question...">
-                <button id="ai-chat-send">Send</button>
-            </div>
-        </div>
-        <button id="ai-chat-fab" class="chat-fab">AI</button>
-    </div>
-
     <!-- Modal -->
     <div id="modal-overlay" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
         <div class="bg-corp-panel w-full max-w-lg rounded border border-corp-border shadow-2xl flex flex-col max-h-[90vh]">
@@ -207,6 +171,9 @@
             </div>
         </div>
     </div>
+
+    <!-- JotForm AI Agent -->
+    <script src='https://cdn.jotfor.ms/agent/embedjs/019ec4ae9b7c79129c97fdfa18d64525b8ae/embed.js'></script>
 
 <script>
 /* ============================================================
@@ -512,12 +479,10 @@ const App = {
         else { this.showLogin(); }
     },
 
-    /* ========== FIX: Properly defined showLogin ========== */
     showLogin() {
         document.getElementById('login-view').classList.remove('hidden');
         document.getElementById('app-view').classList.add('hidden');
-        document.getElementById('ai-chat-widget').classList.add('hidden'); // Hide chat on logout
-        Loading.hide(); // Ensure loading overlay is off
+        Loading.hide();
     },
 
     async login(username, password, remember) {
@@ -567,7 +532,6 @@ const App = {
     async showApp() {
         document.getElementById('login-view').classList.add('hidden');
         document.getElementById('app-view').classList.remove('hidden');
-        document.getElementById('ai-chat-widget').classList.remove('hidden'); // Show chat on login
         this.setupNav();
 
         document.getElementById('page-content').innerHTML = this._skeleton();
@@ -706,53 +670,6 @@ const App = {
     },
     closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); },
 
-    /* ========== AI Chat Logic ========== */
-    handleAiChat() {
-        const input = document.getElementById('ai-chat-input');
-        const msg = input.value.trim();
-        if (!msg) return;
-
-        const messagesDiv = document.getElementById('ai-chat-messages');
-        
-        // Add User Message
-        messagesDiv.innerHTML += `<div class="chat-msg user">${msg}</div>`;
-        input.value = '';
-
-        // Process AI
-        setTimeout(() => {
-            const response = this.getAiResponse(msg.toLowerCase());
-            messagesDiv.innerHTML += `<div class="chat-msg ai">${response}</div>`;
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }, 600); // Simulate thinking time
-        
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    },
-
-    getAiResponse(query) {
-        const totalIncome = this.db.income.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-        const totalExpenses = this.db.expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-        const totalSalaries = this.db.salaries.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
-        const totalSavings = this.db.savings.reduce((s, r) => s + (r.type === 'Deposit' ? parseFloat(r.amount || 0) : -parseFloat(r.amount || 0)), 0);
-        const netProfit = totalIncome - totalExpenses - totalSalaries;
-
-        if (query.includes('income') || query.includes('revenue') || query.includes('earn')) {
-            return `Your total income is <strong>${this.formatCurrency(totalIncome)}</strong> across ${this.db.income.length} records.`;
-        } else if (query.includes('expense') || query.includes('spend') || query.includes('cost')) {
-            return `Your total expenses are <strong>${this.formatCurrency(totalExpenses + totalSalaries)}</strong> (Operations: ${this.formatCurrency(totalExpenses)}, Salaries: ${this.formatCurrency(totalSalaries)}).`;
-        } else if (query.includes('saving') || query.includes('deposit')) {
-            return `Your total net savings are <strong>${this.formatCurrency(totalSavings)}</strong>.`;
-        } else if (query.includes('profit') || query.includes('net') || query.includes('balance')) {
-            const status = netProfit >= 0 ? 'profit' : 'loss';
-            return `Your current net position is a ${status} of <strong>${this.formatCurrency(Math.abs(netProfit))}</strong>.`;
-        } else if (query.includes('health') || query.includes('status') || query.includes('how am i doing')) {
-            if (netProfit > totalIncome * 0.3) return 'Your financial health is <strong>Excellent</strong>. Income growth is strong and expenses are controlled.';
-            if (netProfit > 0) return 'Your financial health is <strong>Stable</strong>. Revenue and expenses are balanced.';
-            return 'Your financial health needs <strong>Attention</strong>. Expenses are exceeding income.';
-        } else {
-            return "I can help with your finances. Try asking about your <strong>income</strong>, <strong>expenses</strong>, <strong>savings</strong>, <strong>profit</strong>, or <strong>financial health</strong>.";
-        }
-    },
-
     /* ========== Events (bound once) ========== */
     bindEvents() {
         document.getElementById('login-form').addEventListener('submit', (e) => {
@@ -792,18 +709,6 @@ const App = {
         document.getElementById('global-search').addEventListener('input', debounce((e) => { this._searchQuery = e.target.value.trim().toLowerCase(); this.refreshPage(); }, CONFIG.DEBOUNCE_MS));
         document.getElementById('page-content').addEventListener('click', (e) => { Paginator.handle(e, (key, page) => { Paginator._states[key].page = page; this.refreshPage(); }); });
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { this.closeModal(); document.getElementById('confirm-overlay').classList.add('hidden'); } });
-
-        // AI Chat Event Listeners
-        document.getElementById('ai-chat-fab').addEventListener('click', () => {
-            document.getElementById('ai-chat-panel').classList.toggle('hidden');
-        });
-        document.getElementById('ai-chat-close').addEventListener('click', () => {
-            document.getElementById('ai-chat-panel').classList.add('hidden');
-        });
-        document.getElementById('ai-chat-send').addEventListener('click', () => this.handleAiChat());
-        document.getElementById('ai-chat-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.handleAiChat();
-        });
     }
 };
 

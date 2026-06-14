@@ -237,7 +237,7 @@ const API = {
     _pending: new Map(),
 
     async request(table, action, payload = null, id = null) {
-        const dedupeKey = action === 'read' ? `read_${table}` : `${table}_${action}_${id || Date.now()}`;
+        const dedupeKey = action === 'read' ? `read_₹{table}` : `₹{table}_₹{action}_₹{id || Date.now()}`;
         if (action === 'read' && this._pending.has(dedupeKey)) return this._pending.get(dedupeKey);
         const promise = this._executeWithRetry(table, action, payload, id);
         if (action === 'read') this._pending.set(dedupeKey, promise);
@@ -246,8 +246,8 @@ const API = {
 
     async _executeWithRetry(table, action, payload, id, attempt = 0) {
         try {
-            let url = `${CONFIG.API_URL}?action=${action}&table=${table}`;
-            if (id) url += `&id=${id}`;
+            let url = `₹{CONFIG.API_URL}?action=₹{action}&table=₹{table}`;
+            if (id) url += `&id=₹{id}`;
             const options = { method: action === 'read' ? 'GET' : 'POST', redirect: 'follow' };
             if (payload) {
                 options.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
@@ -258,19 +258,19 @@ const API = {
             options.signal = controller.signal;
             const res = await fetch(url, options);
             clearTimeout(timeout);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!res.ok) throw new Error(`HTTP ₹{res.status}`);
             const data = await res.json();
             if (action === 'read') Cache.set(table, data.data || []);
             return data.data || [];
         } catch (err) {
             if (attempt < CONFIG.MAX_RETRIES - 1 && (err.name === 'AbortError' || err.name === 'TypeError' || err.message.includes('HTTP'))) {
                 const delay = CONFIG.RETRY_DELAYS[attempt] || 5000;
-                Toast.warning(`Retrying ${table}... (${attempt + 1}/${CONFIG.MAX_RETRIES})`);
+                Toast.warning(`Retrying ₹{table}... (₹{attempt + 1}/₹{CONFIG.MAX_RETRIES})`);
                 await new Promise(r => setTimeout(r, delay));
                 return this._executeWithRetry(table, action, payload, id, attempt + 1);
             }
-            console.error(`API Error [${table}/${action}]:`, err);
-            if (action !== 'read') Toast.error(`Failed to save ${table}. Please try again.`);
+            console.error(`API Error [₹{table}/₹{action}]:`, err);
+            if (action !== 'read') Toast.error(`Failed to save ₹{table}. Please try again.`);
             return action === 'read' ? (Cache.get(table) || []) : [];
         }
     },
@@ -307,8 +307,8 @@ const Toast = {
             info: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'
         };
         const el = document.createElement('div');
-        el.className = `toast-in pointer-events-auto flex items-start gap-3 px-4 py-3 rounded border backdrop-blur-sm ${colors[type] || colors.info}`;
-        el.innerHTML = `<svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">${icons[type] || icons.info}</svg><p class="text-xs flex-1">${message}</p><button class="shrink-0 opacity-60 hover:opacity-100" onclick="this.parentElement.remove()">&times;</button>`;
+        el.className = `toast-in pointer-events-auto flex items-start gap-3 px-4 py-3 rounded border backdrop-blur-sm ₹{colors[type] || colors.info}`;
+        el.innerHTML = `<svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">₹{icons[type] || icons.info}</svg><p class="text-xs flex-1">₹{message}</p><button class="shrink-0 opacity-60 hover:opacity-100" onclick="this.parentElement.remove()">&times;</button>`;
         container.appendChild(el);
         setTimeout(() => { el.classList.replace('toast-in', 'toast-out'); el.addEventListener('animationend', () => el.remove()); }, duration);
     },
@@ -352,7 +352,7 @@ const Validator = {
     rules: {
         required: (v) => (v && v.toString().trim() !== '') || 'This field is required',
         positive: (v) => (parseFloat(v) > 0) || 'Must be a positive number',
-        maxLength: (max) => (v) => (v && v.length <= max) || `Max ${max} characters`
+        maxLength: (max) => (v) => (v && v.length <= max) || `Max ₹{max} characters`
     },
     validate(formEl) {
         let valid = true;
@@ -409,11 +409,11 @@ const Paginator = {
             pages.push(totalPages);
         }
         return `<div class="flex items-center justify-between mt-4 pt-4 border-t border-corp-border">
-            <span class="text-xs text-corp-text">${totalItems} records</span>
+            <span class="text-xs text-corp-text">₹{totalItems} records</span>
             <div class="flex gap-1">
-                <button data-pg="${key}" data-pn="${currentPage - 1}" class="px-2 py-1 text-xs rounded border border-corp-border text-corp-text hover:text-white disabled:opacity-30 disabled:pointer-events-none" ${currentPage <= 1 ? 'disabled' : ''}>&laquo;</button>
-                ${pages.map(p => p === '...' ? `<span class="px-2 py-1 text-xs text-corp-text">...</span>` : `<button data-pg="${key}" data-pn="${p}" class="px-2 py-1 text-xs rounded border ${p === currentPage ? 'bg-purple-600 border-purple-600 text-white' : 'border-corp-border text-corp-text hover:text-white'}">${p}</button>`).join('')}
-                <button data-pg="${key}" data-pn="${currentPage + 1}" class="px-2 py-1 text-xs rounded border border-corp-border text-corp-text hover:text-white disabled:opacity-30 disabled:pointer-events-none" ${currentPage >= totalPages ? 'disabled' : ''}>&raquo;</button>
+                <button data-pg="₹{key}" data-pn="₹{currentPage - 1}" class="px-2 py-1 text-xs rounded border border-corp-border text-corp-text hover:text-white disabled:opacity-30 disabled:pointer-events-none" ₹{currentPage <= 1 ? 'disabled' : ''}>&laquo;</button>
+                ₹{pages.map(p => p === '...' ? `<span class="px-2 py-1 text-xs text-corp-text">...</span>` : `<button data-pg="₹{key}" data-pn="₹{p}" class="px-2 py-1 text-xs rounded border ₹{p === currentPage ? 'bg-purple-600 border-purple-600 text-white' : 'border-corp-border text-corp-text hover:text-white'}">₹{p}</button>`).join('')}
+                <button data-pg="₹{key}" data-pn="₹{currentPage + 1}" class="px-2 py-1 text-xs rounded border border-corp-border text-corp-text hover:text-white disabled:opacity-30 disabled:pointer-events-none" ₹{currentPage >= totalPages ? 'disabled' : ''}>&raquo;</button>
             </div>
         </div>`;
     },
@@ -436,7 +436,7 @@ const Loading = {
    ============================================================ */
 const App = {
     user: null,
-    db: { members: [], salaries: [], income: [], expenses: [], savings: [], activities: [], notifications: [], settings: { companyName: 'TyPixel', currency: '$' } },
+    db: { members: [], salaries: [], income: [], expenses: [], savings: [], activities: [], notifications: [], settings: { companyName: 'TyPixel', currency: '₹' } },
     _currentPage: 'dashboard',
     _saving: false,
     _searchQuery: '',
@@ -547,7 +547,7 @@ const App = {
         return `<div class="page-enter space-y-6">
             <div class="skeleton h-8 w-48"></div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                ${Array(4).fill('<div class="skeleton h-24"></div>').join('')}
+                ₹{Array(4).fill('<div class="skeleton h-24"></div>').join('')}
             </div>
             <div class="skeleton h-48"></div>
         </div>`;
@@ -563,10 +563,10 @@ const App = {
         window.location.hash = page;
         const content = document.getElementById('page-content');
         if (Pages[page]) {
-            content.innerHTML = `<div class="page-enter">${Pages[page].render()}</div>`;
+            content.innerHTML = `<div class="page-enter">₹{Pages[page].render()}</div>`;
             if (Pages[page].init) Pages[page].init();
         } else {
-            content.innerHTML = `<div class="page-enter">${Pages.dashboard.render()}</div>`;
+            content.innerHTML = `<div class="page-enter">₹{Pages.dashboard.render()}</div>`;
             Pages.dashboard.init();
         }
         document.querySelectorAll('.nav-link').forEach(link => {
@@ -581,7 +581,7 @@ const App = {
         if (Pages[page]) {
             const content = document.getElementById('page-content');
             const scrollTop = content.scrollTop;
-            content.innerHTML = `<div class="page-enter">${Pages[page].render()}</div>`;
+            content.innerHTML = `<div class="page-enter">₹{Pages[page].render()}</div>`;
             if (Pages[page].init) Pages[page].init();
             content.scrollTop = scrollTop;
         }
@@ -598,8 +598,8 @@ const App = {
             { id: 'reports', label: 'Reports', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' }
         ];
         document.getElementById('nav-links').innerHTML = navItems.map(item => `
-            <a href="#${item.id}" data-page="${item.id}" class="nav-link flex items-center gap-3 px-4 py-2.5 mx-2 rounded text-xs font-medium text-corp-text hover:bg-corp-black hover:text-white transition-colors mb-1">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${item.icon}"></path></svg> ${item.label}
+            <a href="#₹{item.id}" data-page="₹{item.id}" class="nav-link flex items-center gap-3 px-4 py-2.5 mx-2 rounded text-xs font-medium text-corp-text hover:bg-corp-black hover:text-white transition-colors mb-1">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="₹{item.icon}"></path></svg> ₹{item.label}
             </a>
         `).join('');
     },
@@ -636,7 +636,7 @@ const App = {
     },
 
     /* ========== Utilities ========== */
-    formatCurrency(amount) { return `${this.db.settings.currency}${parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`; },
+    formatCurrency(amount) { return `₹{this.db.settings.currency}₹{parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`; },
     formatDate(dateStr) {
         if (!dateStr) return 'N/A';
         try { const d = new Date(dateStr); return isNaN(d) ? 'N/A' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
@@ -650,9 +650,9 @@ const App = {
         if (unread > 0) {
             badge.classList.remove('hidden');
             dropdown.innerHTML = this.db.notifications.slice(0, 10).map(n => `
-                <div class="px-4 py-2 hover:bg-corp-black border-b border-corp-border ${n.read === 'false' || n.read === false ? 'text-white' : 'text-corp-text'}">
-                    <p class="text-xs">${n.desc || ''}</p>
-                    <p class="text-[10px] text-zinc-600 mt-1">${this.formatDate(n.time)}</p>
+                <div class="px-4 py-2 hover:bg-corp-black border-b border-corp-border ₹{n.read === 'false' || n.read === false ? 'text-white' : 'text-corp-text'}">
+                    <p class="text-xs">₹{n.desc || ''}</p>
+                    <p class="text-[10px] text-zinc-600 mt-1">₹{this.formatDate(n.time)}</p>
                 </div>
             `).join('');
         } else {
@@ -729,27 +729,27 @@ const Pages = {
             else if (netProfit === 0) health = { text: 'Income covers expenses, but profit margins should improve.', color: 'text-yellow-400' };
             else if (netProfit < 0 && totalIncome > 0) health = { text: 'Expenses are rising faster than income. Spending should be reviewed.', color: 'text-orange-400' };
             else health = { text: 'Expenses exceed income. Immediate financial adjustments are recommended.', color: 'text-red-400' };
-            const card = (label, value, color = 'text-white', icon = '') => `<div class="bg-corp-panel border border-corp-border p-4 rounded hover:border-corp-text/20 transition-colors"><p class="text-xs text-corp-text uppercase tracking-wider flex items-center gap-2">${icon}${label}</p><p class="text-xl font-bold ${color} mt-1">${value}</p></div>`;
+            const card = (label, value, color = 'text-white', icon = '') => `<div class="bg-corp-panel border border-corp-border p-4 rounded hover:border-corp-text/20 transition-colors"><p class="text-xs text-corp-text uppercase tracking-wider flex items-center gap-2">₹{icon}₹{label}</p><p class="text-xl font-bold ₹{color} mt-1">₹{value}</p></div>`;
             const filteredIncome = q ? inc.filter(i => (i.source || '').toLowerCase().includes(q) || (i.category || '').toLowerCase().includes(q)) : inc;
             const filteredExpenses = q ? exp.filter(i => (i.name || '').toLowerCase().includes(q) || (i.category || '').toLowerCase().includes(q)) : exp;
             return `<h2 class="text-xl font-bold text-white mb-6">Dashboard Overview</h2>
-                <div class="bg-corp-panel border border-corp-border p-4 rounded mb-8"><h3 class="text-xs font-medium text-corp-text uppercase tracking-wider mb-2">Financial Health Analysis</h3><p class="text-sm font-medium ${health.color}">${health.text}</p></div>
+                <div class="bg-corp-panel border border-corp-border p-4 rounded mb-8"><h3 class="text-xs font-medium text-corp-text uppercase tracking-wider mb-2">Financial Health Analysis</h3><p class="text-sm font-medium ₹{health.color}">₹{health.text}</p></div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-                    ${card('Total Income', App.formatCurrency(totalIncome), 'text-green-400', '<svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>')}
-                    ${card('Total Expenses', App.formatCurrency(totalExpenses + totalSalaries), 'text-red-400', '<svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>')}
-                    ${card('Net Profit', App.formatCurrency(netProfit), netProfit >= 0 ? 'text-green-400' : 'text-red-400')}
-                    ${card('Company Savings', App.formatCurrency(totalSavings), 'text-purple-400')}
-                    ${card('Total Salary Paid', App.formatCurrency(totalSalaries))}
+                    ₹{card('Total Income', App.formatCurrency(totalIncome), 'text-green-400', '<svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>')}
+                    ₹{card('Total Expenses', App.formatCurrency(totalExpenses + totalSalaries), 'text-red-400', '<svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>')}
+                    ₹{card('Net Profit', App.formatCurrency(netProfit), netProfit >= 0 ? 'text-green-400' : 'text-red-400')}
+                    ₹{card('Company Savings', App.formatCurrency(totalSavings), 'text-purple-400')}
+                    ₹{card('Total Salary Paid', App.formatCurrency(totalSalaries))}
                 </div>
-                ${q ? `<p class="text-xs text-corp-text mb-4">Showing results for "${App._searchQuery}"</p>` : ''}
+                ₹{q ? `<p class="text-xs text-corp-text mb-4">Showing results for "₹{App._searchQuery}"</p>` : ''}
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-corp-panel border border-corp-border p-4 rounded"><h3 class="text-sm font-semibold mb-4 text-white">Recent Income</h3>${this._miniTable(filteredIncome.slice(0, 5), ['source', 'amount', 'date'])}</div>
-                    <div class="bg-corp-panel border border-corp-border p-4 rounded"><h3 class="text-sm font-semibold mb-4 text-white">Recent Expenses</h3>${this._miniTable(filteredExpenses.slice(0, 5), ['name', 'amount', 'date'])}</div>
+                    <div class="bg-corp-panel border border-corp-border p-4 rounded"><h3 class="text-sm font-semibold mb-4 text-white">Recent Income</h3>₹{this._miniTable(filteredIncome.slice(0, 5), ['source', 'amount', 'date'])}</div>
+                    <div class="bg-corp-panel border border-corp-border p-4 rounded"><h3 class="text-sm font-semibold mb-4 text-white">Recent Expenses</h3>₹{this._miniTable(filteredExpenses.slice(0, 5), ['name', 'amount', 'date'])}</div>
                 </div>`;
         },
         _miniTable(data, cols) {
             if (!data.length) return '<p class="text-corp-text text-xs">No data</p>';
-            return `<table class="w-full text-xs text-left"><tbody>${data.map(row => `<tr class="border-b border-corp-border"><td class="py-2 text-white">${row[cols[0]] || ''}</td><td class="py-2 text-purple-400">${App.formatCurrency(row[cols[1]])}</td><td class="py-2 text-corp-text text-right">${App.formatDate(row[cols[2]])}</td></tr>`).join('')}</tbody></table>`;
+            return `<table class="w-full text-xs text-left"><tbody>₹{data.map(row => `<tr class="border-b border-corp-border"><td class="py-2 text-white">₹{row[cols[0]] || ''}</td><td class="py-2 text-purple-400">₹{App.formatCurrency(row[cols[1]])}</td><td class="py-2 text-corp-text text-right">₹{App.formatDate(row[cols[2]])}</td></tr>`).join('')}</tbody></table>`;
         },
         init() {}
     },
@@ -765,14 +765,14 @@ const Pages = {
                 <h2 class="text-xl font-bold text-white">Member Management</h2>
                 <button id="add-member-btn" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Add Member</button>
             </div>
-            <div class="text-xs text-corp-text mb-2">${data.length} members found</div>
+            <div class="text-xs text-corp-text mb-2">₹{data.length} members found</div>
             <div id="members-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                ${pageData.length ? pageData.map(m => `<div class="bg-corp-panel border border-corp-border p-4 rounded flex items-start gap-4 hover:border-corp-text/20 transition-colors">
-                    <div class="w-14 h-14 rounded bg-corp-black border border-corp-border overflow-hidden shrink-0 flex items-center justify-center">${m.photo ? `<img src="${m.photo}" class="w-full h-full object-cover" loading="lazy">` : `<span class="text-lg text-zinc-700">${(m.name || '?').charAt(0)}</span>`}</div>
-                    <div class="flex-1 min-w-0"><h4 class="text-sm font-semibold text-white truncate">${m.name || 'Unknown'}</h4><p class="text-xs text-corp-text mt-0.5">${m.position || ''} - ${m.department || ''}</p><p class="text-xs text-purple-400 mt-1">${App.formatCurrency(m.salary)}</p><span class="inline-block mt-1 px-2 py-0.5 text-[10px] font-semibold rounded ${m.status === 'Active' ? 'bg-green-900/20 text-green-400' : 'bg-red-900/20 text-red-400'}">${m.status || 'N/A'}</span></div>
-                    <div class="flex flex-col gap-1 shrink-0"><button data-edit="${m.id}" class="text-[10px] text-corp-text hover:text-white transition-colors">EDIT</button><button data-del="${m.id}" class="text-[10px] text-corp-text hover:text-red-400 transition-colors">DEL</button></div>
+                ₹{pageData.length ? pageData.map(m => `<div class="bg-corp-panel border border-corp-border p-4 rounded flex items-start gap-4 hover:border-corp-text/20 transition-colors">
+                    <div class="w-14 h-14 rounded bg-corp-black border border-corp-border overflow-hidden shrink-0 flex items-center justify-center">₹{m.photo ? `<img src="₹{m.photo}" class="w-full h-full object-cover" loading="lazy">` : `<span class="text-lg text-zinc-700">₹{(m.name || '?').charAt(0)}</span>`}</div>
+                    <div class="flex-1 min-w-0"><h4 class="text-sm font-semibold text-white truncate">₹{m.name || 'Unknown'}</h4><p class="text-xs text-corp-text mt-0.5">₹{m.position || ''} - ₹{m.department || ''}</p><p class="text-xs text-purple-400 mt-1">₹{App.formatCurrency(m.salary)}</p><span class="inline-block mt-1 px-2 py-0.5 text-[10px] font-semibold rounded ₹{m.status === 'Active' ? 'bg-green-900/20 text-green-400' : 'bg-red-900/20 text-red-400'}">₹{m.status || 'N/A'}</span></div>
+                    <div class="flex flex-col gap-1 shrink-0"><button data-edit="₹{m.id}" class="text-[10px] text-corp-text hover:text-white transition-colors">EDIT</button><button data-del="₹{m.id}" class="text-[10px] text-corp-text hover:text-red-400 transition-colors">DEL</button></div>
                 </div>`).join('') : '<p class="text-corp-text text-xs col-span-full">No members found.</p>'}
-            </div>${Paginator.render('members', data.length, state.page)}`;
+            </div>₹{Paginator.render('members', data.length, state.page)}`;
         },
         init() {
             document.getElementById('add-member-btn')?.addEventListener('click', () => this.showForm());
@@ -781,26 +781,26 @@ const Pages = {
         },
         async confirmDelete(id) {
             const member = App.db.members.find(m => m.id === id);
-            const confirmed = await Confirm.show('Delete Member', `Are you sure you want to delete "${member?.name || 'this member'}"? This cannot be undone.`);
-            if (confirmed) await App.saveRecord('members', 'delete', null, id, `Deleted member: ${member?.name || id}`);
+            const confirmed = await Confirm.show('Delete Member', `Are you sure you want to delete "₹{member?.name || 'this member'}"? This cannot be undone.`);
+            if (confirmed) await App.saveRecord('members', 'delete', null, id, `Deleted member: ₹{member?.name || id}`);
         },
         showForm(id = null) {
             const m = id ? App.db.members.find(r => r.id === id) : null;
             App.openModal(id ? 'Edit Member' : 'Add Member', `
                 <form id="member-form" class="space-y-4" novalidate>
-                    <div class="flex justify-center mb-4"><label class="cursor-pointer"><div id="photo-preview" class="w-24 h-24 rounded bg-corp-black border border-dashed border-corp-border flex items-center justify-center overflow-hidden hover:border-purple-500 transition-colors">${m?.photo ? `<img src="${m.photo}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-corp-text text-center px-2">Upload Photo</span>`}</div><input type="file" id="m-photo" class="hidden" accept="image/png,image/jpeg,image/webp"></label></div>
-                    <input type="hidden" id="m-id" value="${m?.id || ''}"><input type="hidden" id="m-photo-data" value="${m?.photo || ''}">
+                    <div class="flex justify-center mb-4"><label class="cursor-pointer"><div id="photo-preview" class="w-24 h-24 rounded bg-corp-black border border-dashed border-corp-border flex items-center justify-center overflow-hidden hover:border-purple-500 transition-colors">₹{m?.photo ? `<img src="₹{m.photo}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-corp-text text-center px-2">Upload Photo</span>`}</div><input type="file" id="m-photo" class="hidden" accept="image/png,image/jpeg,image/webp"></label></div>
+                    <input type="hidden" id="m-id" value="₹{m?.id || ''}"><input type="hidden" id="m-photo-data" value="₹{m?.photo || ''}">
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-corp-text uppercase">Full Name</label><input id="m-name" value="${m?.name || ''}" data-validate="required|maxLength:50" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                        <div><label class="text-[10px] text-corp-text uppercase">Employee ID</label><input id="m-empid" value="${m?.empId || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                        <div><label class="text-[10px] text-corp-text uppercase">Full Name</label><input id="m-name" value="₹{m?.name || ''}" data-validate="required|maxLength:50" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                        <div><label class="text-[10px] text-corp-text uppercase">Employee ID</label><input id="m-empid" value="₹{m?.empId || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-corp-text uppercase">Position</label><input id="m-pos" value="${m?.position || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                        <div><label class="text-[10px] text-corp-text uppercase">Department</label><input id="m-dept" value="${m?.department || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                        <div><label class="text-[10px] text-corp-text uppercase">Position</label><input id="m-pos" value="₹{m?.position || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                        <div><label class="text-[10px] text-corp-text uppercase">Department</label><input id="m-dept" value="₹{m?.department || ''}" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-corp-text uppercase">Monthly Salary</label><input type="number" step="0.01" id="m-salary" value="${m?.salary || ''}" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                        <div><label class="text-[10px] text-corp-text uppercase">Status</label><select id="m-status" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none"><option ${m?.status === 'Active' ? 'selected' : ''}>Active</option><option ${m?.status === 'Inactive' ? 'selected' : ''}>Inactive</option></select></div>
+                        <div><label class="text-[10px] text-corp-text uppercase">Monthly Salary</label><input type="number" step="0.01" id="m-salary" value="₹{m?.salary || ''}" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+                        <div><label class="text-[10px] text-corp-text uppercase">Status</label><select id="m-status" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none"><option ₹{m?.status === 'Active' ? 'selected' : ''}>Active</option><option ₹{m?.status === 'Inactive' ? 'selected' : ''}>Inactive</option></select></div>
                     </div>
                     <button type="submit" id="member-submit-btn" class="btn-press w-full bg-purple-600 hover:bg-purple-700 py-2 rounded text-xs font-semibold transition-colors mt-2 no-select">Save Member</button>
                 </form>`);
@@ -818,7 +818,7 @@ const Pages = {
                         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
                         const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
                         document.getElementById('m-photo-data').value = dataUrl;
-                        document.getElementById('photo-preview').innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover">`;
+                        document.getElementById('photo-preview').innerHTML = `<img src="₹{dataUrl}" class="w-full h-full object-cover">`;
                     }; img.src = ev.target.result;
                 }; reader.readAsDataURL(file);
             });
@@ -830,7 +830,7 @@ const Pages = {
                 btn.disabled = true; btn.innerHTML = '<span class="spinner mr-2"></span>Saving...';
                 const editId = document.getElementById('m-id').value;
                 const payload = { id: editId || 'mem_' + Date.now(), name: document.getElementById('m-name').value.trim(), empId: document.getElementById('m-empid').value.trim(), position: document.getElementById('m-pos').value.trim(), department: document.getElementById('m-dept').value.trim(), salary: document.getElementById('m-salary').value, status: document.getElementById('m-status').value, photo: document.getElementById('m-photo-data').value };
-                try { await App.saveRecord('members', editId ? 'update' : 'create', payload, editId || null, `${editId ? 'Updated' : 'Added'} member: ${payload.name}`); App.closeModal(); }
+                try { await App.saveRecord('members', editId ? 'update' : 'create', payload, editId || null, `₹{editId ? 'Updated' : 'Added'} member: ₹{payload.name}`); App.closeModal(); }
                 finally { btn.disabled = false; btn.textContent = 'Save Member'; }
             });
         }
@@ -848,14 +848,14 @@ const Pages = {
                 <h2 class="text-xl font-bold text-white">Salary Management</h2>
                 <button id="add-salary-btn" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Record Payment</button>
             </div>
-            <div class="bg-corp-panel border border-corp-border p-4 rounded mb-6"><p class="text-xs text-corp-text uppercase">Total Salary Paid</p><p class="text-xl font-bold text-white mt-1">${App.formatCurrency(totalPaid)}</p></div>
-            <div class="bg-corp-panel border border-corp-border rounded overflow-x-auto"><table class="w-full text-xs text-left"><thead class="bg-corp-black text-corp-text uppercase"><tr><th class="p-3">Employee</th><th class="p-3">Amount</th><th class="p-3">Date</th><th class="p-3">Status</th><th class="p-3">Action</th></tr></thead><tbody>${pageData.map(s => `<tr class="border-b border-corp-border hover:bg-corp-black/50"><td class="p-3 text-white">${s.name || ''}</td><td class="p-3 text-purple-400">${App.formatCurrency(s.amount)}</td><td class="p-3 text-corp-text">${App.formatDate(s.date)}</td><td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ${s.status === 'Paid' ? 'bg-green-900/20 text-green-400' : 'bg-yellow-900/20 text-yellow-400'}">${s.status || 'Pending'}</span></td><td class="p-3"><button data-del-sal="${s.id}" class="text-red-400 hover:text-red-300 text-[10px]">Delete</button></td></tr>`).join('')}${!pageData.length ? '<tr><td colspan="5" class="p-3 text-corp-text text-center">No records</td></tr>' : ''}</tbody></table></div>${Paginator.render('salary', data.length, state.page)}`;
+            <div class="bg-corp-panel border border-corp-border p-4 rounded mb-6"><p class="text-xs text-corp-text uppercase">Total Salary Paid</p><p class="text-xl font-bold text-white mt-1">₹{App.formatCurrency(totalPaid)}</p></div>
+            <div class="bg-corp-panel border border-corp-border rounded overflow-x-auto"><table class="w-full text-xs text-left"><thead class="bg-corp-black text-corp-text uppercase"><tr><th class="p-3">Employee</th><th class="p-3">Amount</th><th class="p-3">Date</th><th class="p-3">Status</th><th class="p-3">Action</th></tr></thead><tbody>₹{pageData.map(s => `<tr class="border-b border-corp-border hover:bg-corp-black/50"><td class="p-3 text-white">₹{s.name || ''}</td><td class="p-3 text-purple-400">₹{App.formatCurrency(s.amount)}</td><td class="p-3 text-corp-text">₹{App.formatDate(s.date)}</td><td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ₹{s.status === 'Paid' ? 'bg-green-900/20 text-green-400' : 'bg-yellow-900/20 text-yellow-400'}">₹{s.status || 'Pending'}</span></td><td class="p-3"><button data-del-sal="₹{s.id}" class="text-red-400 hover:text-red-300 text-[10px]">Delete</button></td></tr>`).join('')}₹{!pageData.length ? '<tr><td colspan="5" class="p-3 text-corp-text text-center">No records</td></tr>' : ''}</tbody></table></div>₹{Paginator.render('salary', data.length, state.page)}`;
         },
         init() {
             document.getElementById('add-salary-btn')?.addEventListener('click', () => {
-                const opts = App.db.members.filter(m => m.status === 'Active').map(m => `<option value="${m.id}" data-name="${m.name}">${m.name}</option>`).join('');
+                const opts = App.db.members.filter(m => m.status === 'Active').map(m => `<option value="₹{m.id}" data-name="₹{m.name}">₹{m.name}</option>`).join('');
                 App.openModal('Record Salary', `<form id="sal-form" class="space-y-4" novalidate>
-                    <div><label class="text-[10px] text-corp-text uppercase">Employee</label><select id="s-member" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none"><option value="">Select employee</option>${opts}</select><p class="field-error-msg"></p></div>
+                    <div><label class="text-[10px] text-corp-text uppercase">Employee</label><select id="s-member" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none"><option value="">Select employee</option>₹{opts}</select><p class="field-error-msg"></p></div>
                     <div><label class="text-[10px] text-corp-text uppercase">Amount</label><input type="number" step="0.01" id="s-amount" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
                     <div><label class="text-[10px] text-corp-text uppercase">Date</label><input type="date" id="s-date" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
                     <div><label class="text-[10px] text-corp-text uppercase">Status</label><select id="s-status" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none"><option>Paid</option><option>Pending</option></select></div>
@@ -866,7 +866,7 @@ const Pages = {
                     const btn = document.getElementById('sal-submit-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner mr-2"></span>Saving...';
                     const sel = document.getElementById('s-member');
                     const payload = { id: 'sal_' + Date.now(), memberId: sel.value, name: sel.options[sel.selectedIndex].dataset.name, amount: document.getElementById('s-amount').value, date: document.getElementById('s-date').value, status: document.getElementById('s-status').value };
-                    try { await App.saveRecord('salaries', 'create', payload, null, `Added salary payment: ${payload.name}`); App.closeModal(); }
+                    try { await App.saveRecord('salaries', 'create', payload, null, `Added salary payment: ₹{payload.name}`); App.closeModal(); }
                     finally { btn.disabled = false; btn.textContent = 'Save Payment'; }
                 });
             });
@@ -886,32 +886,32 @@ const Pages = {
         const state = Paginator.getState(type, data.length);
         const pageData = Paginator.paginate(data, state.page, CONFIG.PAGE_SIZE);
         return `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-            <h2 class="text-xl font-bold text-white">${title} Management</h2>
-            <button id="add-fin-btn" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Add ${title}</button>
+            <h2 class="text-xl font-bold text-white">₹{title} Management</h2>
+            <button id="add-fin-btn" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Add ₹{title}</button>
         </div>
-        <div class="bg-corp-panel border border-corp-border p-4 rounded mb-6"><p class="text-xs text-corp-text uppercase">Total ${title}</p><p class="text-xl font-bold ${type === 'income' ? 'text-green-400' : 'text-red-400'} mt-1">${App.formatCurrency(total)}</p></div>
-        <div class="bg-corp-panel border border-corp-border rounded overflow-x-auto"><table class="w-full text-xs text-left"><thead class="bg-corp-black text-corp-text uppercase"><tr><th class="p-3">${type === 'income' ? 'Source' : 'Name'}</th><th class="p-3">Category</th><th class="p-3">Amount</th><th class="p-3">Date</th><th class="p-3">Action</th></tr></thead><tbody>${pageData.map(i => `<tr class="border-b border-corp-border hover:bg-corp-black/50"><td class="p-3 text-white">${i[nameField] || ''}</td><td class="p-3 text-corp-text"><span class="px-2 py-0.5 bg-corp-black rounded">${i.category || ''}</span></td><td class="p-3 text-purple-400">${App.formatCurrency(i.amount)}</td><td class="p-3 text-corp-text">${App.formatDate(i.date)}</td><td class="p-3"><button data-del-fin="${i.id}" class="text-red-400 hover:text-red-300 text-[10px]">Delete</button></td></tr>`).join('')}${!pageData.length ? '<tr><td colspan="5" class="p-3 text-corp-text text-center">No records</td></tr>' : ''}</tbody></table></div>${Paginator.render(type, data.length, state.page)}`;
+        <div class="bg-corp-panel border border-corp-border p-4 rounded mb-6"><p class="text-xs text-corp-text uppercase">Total ₹{title}</p><p class="text-xl font-bold ₹{type === 'income' ? 'text-green-400' : 'text-red-400'} mt-1">₹{App.formatCurrency(total)}</p></div>
+        <div class="bg-corp-panel border border-corp-border rounded overflow-x-auto"><table class="w-full text-xs text-left"><thead class="bg-corp-black text-corp-text uppercase"><tr><th class="p-3">₹{type === 'income' ? 'Source' : 'Name'}</th><th class="p-3">Category</th><th class="p-3">Amount</th><th class="p-3">Date</th><th class="p-3">Action</th></tr></thead><tbody>₹{pageData.map(i => `<tr class="border-b border-corp-border hover:bg-corp-black/50"><td class="p-3 text-white">₹{i[nameField] || ''}</td><td class="p-3 text-corp-text"><span class="px-2 py-0.5 bg-corp-black rounded">₹{i.category || ''}</span></td><td class="p-3 text-purple-400">₹{App.formatCurrency(i.amount)}</td><td class="p-3 text-corp-text">₹{App.formatDate(i.date)}</td><td class="p-3"><button data-del-fin="₹{i.id}" class="text-red-400 hover:text-red-300 text-[10px]">Delete</button></td></tr>`).join('')}₹{!pageData.length ? '<tr><td colspan="5" class="p-3 text-corp-text text-center">No records</td></tr>' : ''}</tbody></table></div>₹{Paginator.render(type, data.length, state.page)}`;
     },
 
     _finInit(type, field, title, categories) {
         document.getElementById('add-fin-btn')?.addEventListener('click', () => {
-            App.openModal(`Add ${title}`, `<form id="fin-form" class="space-y-4" novalidate>
-                <div><label class="text-[10px] text-corp-text uppercase">${type === 'income' ? 'Source' : 'Name'}</label><input id="f-name" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
+            App.openModal(`Add ₹{title}`, `<form id="fin-form" class="space-y-4" novalidate>
+                <div><label class="text-[10px] text-corp-text uppercase">₹{type === 'income' ? 'Source' : 'Name'}</label><input id="f-name" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
                 <div><label class="text-[10px] text-corp-text uppercase">Amount</label><input type="number" step="0.01" id="f-amount" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
-                <div><label class="text-[10px] text-corp-text uppercase">Category</label><select id="f-cat" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none">${categories.map(c => `<option>${c}</option>`).join('')}</select></div>
+                <div><label class="text-[10px] text-corp-text uppercase">Category</label><select id="f-cat" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none">₹{categories.map(c => `<option>₹{c}</option>`).join('')}</select></div>
                 <div><label class="text-[10px] text-corp-text uppercase">Date</label><input type="date" id="f-date" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
                 <button type="submit" id="fin-submit-btn" class="btn-press w-full bg-purple-600 hover:bg-purple-700 py-2 rounded text-xs font-semibold transition-colors no-select">Save</button></form>`);
             document.getElementById('fin-form').addEventListener('submit', async (e) => {
                 e.preventDefault(); if (!Validator.validate(e.target)) { Toast.error('Please fix the errors'); return; } if (App._saving) return;
                 const btn = document.getElementById('fin-submit-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner mr-2"></span>Saving...';
                 const payload = { id: type.charAt(0) + '_' + Date.now(), [field]: document.getElementById('f-name').value.trim(), amount: document.getElementById('f-amount').value, category: document.getElementById('f-cat').value, date: document.getElementById('f-date').value, desc: '' };
-                try { await App.saveRecord(type, 'create', payload, null, `Added ${title} record: ${payload[field]}`); App.closeModal(); }
+                try { await App.saveRecord(type, 'create', payload, null, `Added ₹{title} record: ₹{payload[field]}`); App.closeModal(); }
                 finally { btn.disabled = false; btn.textContent = 'Save'; }
             });
         });
         document.querySelectorAll('[data-del-fin]').forEach(btn => btn.addEventListener('click', async (e) => {
             const confirmed = await Confirm.show('Delete Record', 'Are you sure you want to delete this record?');
-            if (confirmed) await App.saveRecord(type, 'delete', null, e.target.dataset.delFin, `Deleted ${title} record`);
+            if (confirmed) await App.saveRecord(type, 'delete', null, e.target.dataset.delFin, `Deleted ₹{title} record`);
         }));
     },
 
@@ -937,12 +937,12 @@ const Pages = {
                 <h2 class="text-xl font-bold text-white">Company Savings</h2>
                 <div class="flex gap-2"><button id="add-deposit" class="btn-press bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Deposit</button><button id="add-withdraw" class="btn-press bg-corp-panel border border-corp-border hover:bg-corp-black px-4 py-2 rounded text-xs font-semibold transition-colors no-select">Withdraw</button></div>
             </div>
-            <div class="bg-corp-panel border border-corp-border p-4 rounded mb-6"><p class="text-xs text-corp-text uppercase">Total Savings Balance</p><p class="text-xl font-bold text-purple-400 mt-1">${App.formatCurrency(balance)}</p></div>
-            <div class="bg-corp-panel border border-corp-border rounded overflow-x-auto"><table class="w-full text-xs text-left"><thead class="bg-corp-black text-corp-text uppercase"><tr><th class="p-3">Type</th><th class="p-3">Amount</th><th class="p-3">Date</th><th class="p-3">Description</th><th class="p-3">Action</th></tr></thead><tbody>${pageData.map(i => `<tr class="border-b border-corp-border hover:bg-corp-black/50"><td class="p-3 ${i.type === 'Deposit' ? 'text-green-400' : 'text-red-400'}">${i.type}</td><td class="p-3 text-white">${App.formatCurrency(i.amount)}</td><td class="p-3 text-corp-text">${App.formatDate(i.date)}</td><td class="p-3 text-corp-text">${i.desc || 'N/A'}</td><td class="p-3"><button data-del-sav="${i.id}" class="text-red-400 hover:text-red-300 text-[10px]">Delete</button></td></tr>`).join('')}${!pageData.length ? '<tr><td colspan="5" class="p-3 text-corp-text text-center">No records</td></tr>' : ''}</tbody></table></div>${Paginator.render('savings', data.length, state.page)}`;
+            <div class="bg-corp-panel border border-corp-border p-4 rounded mb-6"><p class="text-xs text-corp-text uppercase">Total Savings Balance</p><p class="text-xl font-bold text-purple-400 mt-1">₹{App.formatCurrency(balance)}</p></div>
+            <div class="bg-corp-panel border border-corp-border rounded overflow-x-auto"><table class="w-full text-xs text-left"><thead class="bg-corp-black text-corp-text uppercase"><tr><th class="p-3">Type</th><th class="p-3">Amount</th><th class="p-3">Date</th><th class="p-3">Description</th><th class="p-3">Action</th></tr></thead><tbody>₹{pageData.map(i => `<tr class="border-b border-corp-border hover:bg-corp-black/50"><td class="p-3 ₹{i.type === 'Deposit' ? 'text-green-400' : 'text-red-400'}">₹{i.type}</td><td class="p-3 text-white">₹{App.formatCurrency(i.amount)}</td><td class="p-3 text-corp-text">₹{App.formatDate(i.date)}</td><td class="p-3 text-corp-text">₹{i.desc || 'N/A'}</td><td class="p-3"><button data-del-sav="₹{i.id}" class="text-red-400 hover:text-red-300 text-[10px]">Delete</button></td></tr>`).join('')}₹{!pageData.length ? '<tr><td colspan="5" class="p-3 text-corp-text text-center">No records</td></tr>' : ''}</tbody></table></div>₹{Paginator.render('savings', data.length, state.page)}`;
         },
         init() {
             const formHtml = (type) => `<form id="sav-form" class="space-y-4" novalidate>
-                <input type="hidden" id="sv-type" value="${type}">
+                <input type="hidden" id="sv-type" value="₹{type}">
                 <div><label class="text-[10px] text-corp-text uppercase">Amount</label><input type="number" step="0.01" id="sv-amount" data-validate="required|positive" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
                 <div><label class="text-[10px] text-corp-text uppercase">Date</label><input type="date" id="sv-date" data-validate="required" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"><p class="field-error-msg"></p></div>
                 <div><label class="text-[10px] text-corp-text uppercase">Description</label><input id="sv-desc" class="w-full mt-1 p-2 bg-corp-black border border-corp-border rounded text-xs text-white outline-none focus:ring-1 focus:ring-purple-500"></div>
@@ -959,7 +959,7 @@ const Pages = {
                 e.preventDefault(); if (!Validator.validate(e.target)) { Toast.error('Please fix the errors'); return; } if (App._saving) return;
                 const btn = document.getElementById('sav-submit-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner mr-2"></span>Saving...';
                 const payload = { id: 'sav_' + Date.now(), type: document.getElementById('sv-type').value, amount: document.getElementById('sv-amount').value, date: document.getElementById('sv-date').value, desc: document.getElementById('sv-desc').value.trim() };
-                try { await App.saveRecord('savings', 'create', payload, null, `Recorded ${payload.type} in savings`); App.closeModal(); }
+                try { await App.saveRecord('savings', 'create', payload, null, `Recorded ₹{payload.type} in savings`); App.closeModal(); }
                 finally { btn.disabled = false; btn.textContent = 'Save'; }
             });
         }
@@ -979,7 +979,7 @@ const Pages = {
                         <button data-report="savings" class="btn-press w-full text-left px-4 py-3 bg-corp-black border border-corp-border rounded hover:border-purple-500 transition-colors text-xs text-corp-text hover:text-white no-select">Savings Report</button>
                     </div></div>
                     <div class="bg-corp-panel border border-corp-border p-6 rounded"><h3 class="text-sm font-semibold mb-4 text-white">Activity Log</h3><div class="space-y-2 max-h-80 overflow-y-auto pr-2">
-                        ${activities.length ? activities.slice(0, 50).map(a => `<div class="text-[11px] border-b border-corp-border pb-2"><span class="text-zinc-600">${a.time ? new Date(a.time).toLocaleString() : ''}</span><br><span class="text-corp-text">${a.desc || ''}</span></div>`).join('') : '<p class="text-corp-text text-xs">No activities recorded.</p>'}
+                        ₹{activities.length ? activities.slice(0, 50).map(a => `<div class="text-[11px] border-b border-corp-border pb-2"><span class="text-zinc-600">₹{a.time ? new Date(a.time).toLocaleString() : ''}</span><br><span class="text-corp-text">₹{a.desc || ''}</span></div>`).join('') : '<p class="text-corp-text text-xs">No activities recorded.</p>'}
                     </div></div>
                 </div>`;
         },
@@ -995,8 +995,8 @@ const Pages = {
                 savings: { title: 'Savings Report', headers: ['Type', 'Amount', 'Date', 'Description'], fields: ['type', 'amount', 'date', 'desc'] }
             };
             const cfg = config[type]; if (!cfg) return;
-            if (!data.length) { Toast.warning(`No ${type} data to export.`); return; }
-            App.openModal(`Export ${cfg.title}`, `<div class="space-y-4"><p class="text-xs text-corp-text">Exporting ${data.length} records from ${cfg.title}.</p><div class="grid grid-cols-3 gap-2">
+            if (!data.length) { Toast.warning(`No ₹{type} data to export.`); return; }
+            App.openModal(`Export ₹{cfg.title}`, `<div class="space-y-4"><p class="text-xs text-corp-text">Exporting ₹{data.length} records from ₹{cfg.title}.</p><div class="grid grid-cols-3 gap-2">
                 <button id="exp-pdf" class="btn-press bg-purple-600 hover:bg-purple-700 py-2 rounded text-xs font-semibold transition-colors no-select">PDF</button>
                 <button id="exp-xlsx" class="btn-press bg-corp-black border border-corp-border hover:border-purple-500 py-2 rounded text-xs font-semibold transition-colors text-white no-select">Excel</button>
                 <button id="exp-csv" class="btn-press bg-corp-black border border-corp-border hover:border-purple-500 py-2 rounded text-xs font-semibold transition-colors text-white no-select">CSV</button>
@@ -1009,15 +1009,15 @@ const Pages = {
             try {
                 const { jsPDF } = window.jspdf; const doc = new jsPDF();
                 doc.setFontSize(16); doc.text(cfg.title, 14, 20);
-                doc.setFontSize(10); doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
-                doc.text(`Total Records: ${data.length}`, 14, 34);
+                doc.setFontSize(10); doc.text(`Generated: ₹{new Date().toLocaleString()}`, 14, 28);
+                doc.text(`Total Records: ₹{data.length}`, 14, 34);
                 let y = 44; doc.setFontSize(9); doc.setFont(undefined, 'bold');
                 cfg.headers.forEach((h, i) => doc.text(h, 14 + i * 42, y)); y += 6; doc.setFont(undefined, 'normal');
                 data.forEach(row => {
                     if (y > 280) { doc.addPage(); y = 20; }
                     cfg.fields.forEach((f, i) => { let val = row[f] || ''; if (f === 'amount') val = App.formatCurrency(val); if (f === 'date') val = App.formatDate(val); doc.text(String(val).substring(0, 20), 14 + i * 42, y); }); y += 5;
                 });
-                doc.save(`${cfg.title.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+                doc.save(`₹{cfg.title.replace(/\s/g, '_')}_₹{new Date().toISOString().slice(0, 10)}.pdf`);
                 Toast.success('PDF exported'); App.closeModal();
             } catch (err) { Toast.error('PDF export failed: ' + err.message); }
         },
@@ -1026,18 +1026,18 @@ const Pages = {
                 const rows = data.map(row => cfg.fields.map(f => { if (f === 'amount') return parseFloat(row[f]) || 0; return row[f] || ''; }));
                 const ws = XLSX.utils.aoa_to_sheet([cfg.headers, ...rows]);
                 const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Report');
-                XLSX.writeFile(wb, `${cfg.title.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+                XLSX.writeFile(wb, `₹{cfg.title.replace(/\s/g, '_')}_₹{new Date().toISOString().slice(0, 10)}.xlsx`);
                 Toast.success('Excel exported'); App.closeModal();
             } catch (err) { Toast.error('Excel export failed: ' + err.message); }
         },
         _exportCSV(cfg, data) {
             try {
                 const header = cfg.headers.join(',');
-                const rows = data.map(row => cfg.fields.map(f => { let val = row[f] || ''; if (f === 'amount') val = parseFloat(row[f]) || 0; return `"${String(val).replace(/"/g, '""')}"`; }).join(','));
+                const rows = data.map(row => cfg.fields.map(f => { let val = row[f] || ''; if (f === 'amount') val = parseFloat(row[f]) || 0; return `"₹{String(val).replace(/"/g, '""')}"`; }).join(','));
                 const csv = [header, ...rows].join('\n');
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = `${cfg.title.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url);
+                const a = document.createElement('a'); a.href = url; a.download = `₹{cfg.title.replace(/\s/g, '_')}_₹{new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url);
                 Toast.success('CSV exported'); App.closeModal();
             } catch (err) { Toast.error('CSV export failed: ' + err.message); }
         }
